@@ -8,6 +8,42 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 #[cfg(target_family = "wasm")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
+fn create_joint_with_link_array3() -> k::SerialChain<f64> {
+    let l0: k::Node<f64> = k::NodeBuilder::new()
+        .name("shoulder_pitch")
+        .joint_type(k::JointType::Rotational {
+            axis: Vector3::y_axis(),
+        })
+        .finalize()
+        .into();
+    let l1: k::Node<f64> = k::NodeBuilder::new()
+        .name("shoulder_roll")
+        .joint_type(k::JointType::Rotational {
+            axis: Vector3::x_axis(),
+        })
+        .translation(Translation3::new(0.0, 0.1, 0.))
+        .finalize()
+        .into();
+    let l2: k::Node<f64> = k::NodeBuilder::new()
+        .name("shoulder_yaw")
+        .joint_type(k::JointType::Rotational {
+            axis: Vector3::z_axis(),
+        })
+        .translation(Translation3::new(10.0, 0.0, 0.))
+        .finalize()
+        .into();
+    let l3: k::Node<f64> = k::NodeBuilder::new()
+        .name("elbow_pitch")
+        .joint_type(k::JointType::Rotational {
+            axis: Vector3::y_axis(),
+        })
+        .translation(Translation3::new(20.0, 0.0, 0.))
+        .finalize()
+        .into();
+    connect![l0 => l1 => l2 => l3];
+    k::SerialChain::from_end(&l3)
+}
+
 fn create_joint_with_link_array6() -> k::SerialChain<f64> {
     let l0: k::Node<f64> = k::NodeBuilder::new()
         .name("shoulder_pitch")
@@ -174,5 +210,33 @@ fn ik_fk7_with_constraints() {
     for (init, end) in angles.iter().zip(end_angles.iter()) {
         assert!((init - end).abs() < 0.001);
         assert!((angles[6] - end_angles[6]).abs() < f32::EPSILON);
+    }
+}
+
+#[test]
+fn ik_fk3_fabrik() {
+    // let poss = vec![
+    //     Vector::new(0.0, 0.0),
+    //     Vector::new(10.0, 0.0),
+    //     Vector::new(20.0, 0.0),
+    // ];
+    // let mut fab = Fabrik::new(poss, 0.01);
+
+    // assert_eq!(fab.move_to(Vector::new(20.0, 0.0), true), 0);
+    // assert_eq!(fab.angles_deg(), vec![0.0, 0.0]);
+
+    let arm = create_joint_with_link_array3();
+    let angles = vec![0.0, 0.0];
+    arm.set_joint_positions(&angles).unwrap();
+    let poses = arm.update_transforms();
+    let init_pose = poses.last().unwrap();
+    let solver = k::FABRIKIkSolver::new(0.001);
+    // set different angles
+    arm.set_joint_positions(&[0.4, 0.1, 0.1]).unwrap();
+    solver.solve(&arm, init_pose).unwrap();
+    let end_angles = arm.joint_positions();
+    println!("{end_angles:?}");
+    for (init, end) in angles.iter().zip(end_angles.iter()) {
+        assert!((init - end).abs() < 0.002);
     }
 }

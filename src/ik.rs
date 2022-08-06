@@ -14,6 +14,10 @@
   limitations under the License.
 */
 
+mod fabrik;
+
+pub use fabrik::FABRIKIkSolver;
+
 use std::fmt;
 
 use na::{DVector, Isometry3, RealField, Vector3, Vector6};
